@@ -29,19 +29,19 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
   // Conectar WebSocket
   useEffect(() => {
     if (isActive) {
-      const wsUrl = BACKEND_URL.replace('http', 'ws') + '/ws/gestures' + (profileId ? `?profile_id=${profileId}` : '');
+      // Construir la URL del WebSocket correctamente
+      const backendUrl = new URL(BACKEND_URL);
+      const protocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${backendUrl.host}/ws/gestures${profileId ? `?profile_id=${profileId}` : ''}`;
       
-      socketRef.current = io(wsUrl, {
-        transports: ['websocket'],
-        path: '/ws/gestures'
-      });
-
+      console.log('Conectando a WebSocket:', wsUrl);
+      
       // Usar WebSocket nativo para conexión directa
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket conectado');
+        console.log('✅ WebSocket conectado exitosamente');
       };
 
       ws.onmessage = (event) => {
@@ -50,7 +50,7 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('❌ WebSocket error:', error);
       };
 
       ws.onclose = () => {
