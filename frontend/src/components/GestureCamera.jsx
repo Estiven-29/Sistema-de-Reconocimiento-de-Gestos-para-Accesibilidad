@@ -218,13 +218,33 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
         {/* Vista de la cámara */}
         <div className="relative bg-gray-900 rounded-lg overflow-hidden" style={{ aspectRatio: '4/3' }}>
           {isActive ? (
-            <Webcam
-              ref={webcamRef}
-              screenshotFormat="image/jpeg"
-              videoConstraints={videoConstraints}
-              className="w-full h-full object-cover"
-              mirrored
-            />
+            <>
+              <Webcam
+                ref={webcamRef}
+                screenshotFormat="image/jpeg"
+                videoConstraints={videoConstraints}
+                className="w-full h-full object-cover"
+                mirrored
+                onUserMediaError={(error) => {
+                  console.error('❌ Error al acceder a la cámara:', error);
+                  setErrorMessage('No se pudo acceder a la cámara. Verifica los permisos.');
+                }}
+                onUserMedia={() => {
+                  console.log('✅ Cámara iniciada correctamente');
+                  setErrorMessage(null);
+                }}
+              />
+              
+              {/* Mensaje de error si hay problemas */}
+              {errorMessage && (
+                <div className="absolute inset-0 bg-red-900/80 flex items-center justify-center">
+                  <div className="text-center text-white px-4">
+                    <p className="font-semibold mb-2">⚠️ Error</p>
+                    <p className="text-sm">{errorMessage}</p>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">
               <div className="text-center">
@@ -236,7 +256,7 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
           )}
 
           {/* Overlay de información */}
-          {isActive && (
+          {isActive && !errorMessage && (
             <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
               <div className="space-y-2">
                 <Badge variant="secondary" className="bg-black/70 text-white border-none">
@@ -244,6 +264,12 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
                 </Badge>
                 <Badge variant="secondary" className="bg-black/70 text-white border-none">
                   Latencia: {latency}ms
+                </Badge>
+                <Badge 
+                  variant={connectionStatus === 'connected' ? 'success' : 'destructive'} 
+                  className="bg-black/70 border-none"
+                >
+                  {connectionStatus === 'connected' ? '🟢 Conectado' : '🔴 Desconectado'}
                 </Badge>
               </div>
             </div>
