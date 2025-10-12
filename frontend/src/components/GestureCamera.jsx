@@ -43,6 +43,8 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
 
       ws.onopen = () => {
         console.log('✅ WebSocket conectado exitosamente');
+        setConnectionStatus('connected');
+        setErrorMessage(null);
       };
 
       ws.onmessage = (event) => {
@@ -52,10 +54,13 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
 
       ws.onerror = (error) => {
         console.error('❌ WebSocket error:', error);
+        setConnectionStatus('error');
+        setErrorMessage('Error de conexión con el servidor');
       };
 
       ws.onclose = () => {
         console.log('WebSocket desconectado');
+        setConnectionStatus('disconnected');
       };
 
       return () => {
