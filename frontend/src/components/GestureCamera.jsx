@@ -15,6 +15,8 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
   const [confidence, setConfidence] = useState(0);
   const [fps, setFps] = useState(0);
   const [latency, setLatency] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [errorMessage, setErrorMessage] = useState(null);
   const frameCountRef = useRef(0);
   const lastTimeRef = useRef(Date.now());
 
