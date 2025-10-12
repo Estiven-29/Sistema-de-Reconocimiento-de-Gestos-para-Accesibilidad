@@ -137,6 +137,8 @@ const Dashboard = () => {
 
           {/* Columna Lateral - Perfiles y Estadísticas */}
           <div className="space-y-6">
+            <DemoMode onGestureDetected={handleGestureDetected} />
+            
             <ProfileManager
               onProfileSelect={setSelectedProfile}
               selectedProfileId={selectedProfile}
