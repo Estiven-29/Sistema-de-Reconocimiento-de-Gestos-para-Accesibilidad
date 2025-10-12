@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import GestureCamera from './GestureCamera';
 import ProfileManager from './ProfileManager';
 import GestureStats from './GestureStats';
+import DemoMode from './DemoMode';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Hand, Activity, BarChart3, Info } from 'lucide-react';
