@@ -76,25 +76,42 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
   }, [isActive]);
 
   const captureAndSendFrame = useCallback(() => {
-    if (webcamRef.current && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const imageSrc = webcamRef.current.getScreenshot();
-      
-      if (imageSrc) {
-        const startTime = Date.now();
-        
-        socketRef.current.send(JSON.stringify({
-          image: imageSrc
-        }));
+    if (!webcamRef.current) {
+      console.warn('⚠️ Webcam ref no disponible');
+      return;
+    }
 
-        // Actualizar FPS
-        frameCountRef.current++;
-        const now = Date.now();
-        if (now - lastTimeRef.current >= 1000) {
-          setFps(frameCountRef.current);
-          frameCountRef.current = 0;
-          lastTimeRef.current = now;
-        }
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+      console.warn('⚠️ WebSocket no conectado. Estado:', socketRef.current?.readyState);
+      return;
+    }
+
+    const imageSrc = webcamRef.current.getScreenshot();
+    
+    if (!imageSrc) {
+      console.warn('⚠️ No se pudo capturar frame de la cámara');
+      return;
+    }
+
+    try {
+      const startTime = Date.now();
+      
+      socketRef.current.send(JSON.stringify({
+        image: imageSrc
+      }));
+
+      console.log('📤 Frame enviado al servidor');
+
+      // Actualizar FPS
+      frameCountRef.current++;
+      const now = Date.now();
+      if (now - lastTimeRef.current >= 1000) {
+        setFps(frameCountRef.current);
+        frameCountRef.current = 0;
+        lastTimeRef.current = now;
       }
+    } catch (error) {
+      console.error('❌ Error al enviar frame:', error);
     }
   }, []);
 
