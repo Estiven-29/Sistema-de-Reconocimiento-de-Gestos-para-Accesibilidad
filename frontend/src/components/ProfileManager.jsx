@@ -85,23 +85,24 @@ const ProfileManager = ({ onProfileSelect, selectedProfileId }) => {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="gesture-card w-full border-0 shadow-lg">
+      <CardHeader className="bg-gradient-to-r from-purple-50 to-indigo-50">
         <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <User className="h-6 w-6" />
+          <span className="flex items-center gap-2 text-purple-700">
+            <User className="h-6 w-6 text-purple-600" />
             Perfiles de Usuario
           </span>
-          <Button
-            onClick={() => setShowCreateForm(!showCreateForm)}
+          <Button 
+            onClick={() => setShowCreateForm(!showCreateForm)} 
             size="sm"
             variant={showCreateForm ? "outline" : "default"}
+            className="rounded-full px-4 border-purple-200 bg-white/50 hover:bg-white hover:text-purple-700 transition-all duration-300"
           >
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Perfil
           </Button>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-purple-600/80">
           Gestiona perfiles personalizados con configuraciones de gestos
         </CardDescription>
       </CardHeader>

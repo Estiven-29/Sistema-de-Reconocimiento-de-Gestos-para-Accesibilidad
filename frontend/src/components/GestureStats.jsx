@@ -58,14 +58,14 @@ const GestureStats = ({ recentGestures, profileId }) => {
   return (
     <div className="space-y-6">
       {/* Estadísticas Globales */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Estadísticas
+      <Card className="gesture-card border-0 shadow-lg">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50">
+          <CardTitle className="flex items-center gap-2 text-blue-700">
+            <BarChart3 className="h-5 w-5 text-blue-600" />
+            Estadísticas de Gestos
           </CardTitle>
-          <CardDescription>
-            Resumen de gestos detectados
+          <CardDescription className="text-blue-600/80">
+            Análisis de los gestos detectados recientemente
           </CardDescription>
         </CardHeader>
         <CardContent>

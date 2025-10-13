@@ -5,7 +5,7 @@ import GestureStats from './GestureStats';
 import DemoMode from './DemoMode';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Hand, Activity, BarChart3, Info } from 'lucide-react';
+import { Hand, Activity, BarChart3, Info, Accessibility, Settings } from 'lucide-react';
 
 const Dashboard = () => {
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -67,11 +67,11 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-600 rounded-xl">
-                <Hand className="h-8 w-8 text-white" />
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                <Accessibility className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
                   Control por Gestos
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">
@@ -79,7 +79,7 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-            <Badge variant="success" className="text-sm px-4 py-2">
+            <Badge variant="success" className="text-sm px-4 py-2 bg-gradient-to-r from-green-400 to-green-500 text-white shadow-sm">
               <Activity className="h-4 w-4 mr-2" />
               Sistema Activo
             </Badge>

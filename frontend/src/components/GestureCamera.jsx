@@ -5,7 +5,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Video, VideoOff, Activity } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Definir una URL de backend por defecto en caso de que la variable de entorno no esté disponible
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 const GestureCamera = ({ profileId, onGestureDetected }) => {
   const webcamRef = useRef(null);
@@ -30,18 +31,19 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
   // Conectar WebSocket
   useEffect(() => {
     if (isActive) {
-      // Construir la URL del WebSocket correctamente
-      const backendUrl = new URL(BACKEND_URL);
-      const protocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${backendUrl.host}/ws/gestures${profileId ? `?profile_id=${profileId}` : ''}`;
-      
-      console.log('Conectando a WebSocket:', wsUrl);
-      
-      // Usar WebSocket nativo para conexión directa
-      const ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-
-      ws.onopen = () => {
+      try {
+        // Construir la URL del WebSocket correctamente
+        const backendUrl = new URL(BACKEND_URL);
+        const protocol = backendUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${backendUrl.host}/ws/gestures${profileId ? `?profile_id=${profileId}` : ''}`;
+        
+        console.log('Conectando a WebSocket:', wsUrl);
+       
+        // Usar WebSocket nativo para conexión directa
+        const ws = new WebSocket(wsUrl);
+        socketRef.current = ws;
+        
+        ws.onopen = () => {
         console.log('✅ WebSocket conectado exitosamente');
         setConnectionStatus('connected');
         setErrorMessage(null);
@@ -68,6 +70,11 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
           ws.close();
         }
       };
+      } catch (error) {
+        console.error('Error al crear la URL del WebSocket:', error);
+        setConnectionStatus('error');
+        setErrorMessage('Error de conexión: URL del backend inválida');
+      }
     }
   }, [isActive, profileId]);
 
@@ -185,17 +192,22 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="gesture-card overflow-hidden border-0 shadow-lg">
+      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
         <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Activity className="h-6 w-6" />
+          <span className="flex items-center gap-2 text-blue-700">
+            <Activity className="h-6 w-6 text-blue-600" />
             Detección de Gestos en Tiempo Real
           </span>
           <Button
             onClick={toggleCamera}
             variant={isActive ? "destructive" : "default"}
             size="sm"
+            className={`rounded-full px-5 shadow-md transition-all duration-300 ${
+                isActive 
+                  ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700" 
+                  : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+              }`}
           >
             {isActive ? (
               <>
@@ -210,7 +222,7 @@ const GestureCamera = ({ profileId, onGestureDetected }) => {
             )}
           </Button>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-blue-600/80">
           Usa tu cámara para detectar gestos de mano y controlar acciones
         </CardDescription>
       </CardHeader>
