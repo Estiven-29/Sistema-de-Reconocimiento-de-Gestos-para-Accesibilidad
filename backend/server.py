@@ -2,7 +2,6 @@ from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, HTTPExce
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
@@ -14,6 +13,7 @@ import base64
 import cv2
 import numpy as np
 import asyncio
+from contextlib import asynccontextmanager
 
 # Importar modelos y servicios
 from models import (
@@ -26,17 +26,26 @@ from models import (
 from services.hand_detector import HandDetector
 from services.gesture_classifier import GestureClassifier
 from services.gesture_processor import GestureProcessor
+from services.system_controller import SystemController
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Modo sin MongoDB para pruebas de gestos
+print("Iniciando en modo sin base de datos para pruebas de gestos")
+MONGODB_AVAILABLE = False
+client = None
+db = None
+
+@asynccontextmanager
+async def lifespan(app):
+    # Código que se ejecuta al iniciar
+    yield
+    # Código que se ejecuta al apagar
+    logger.info("Servidor apagado")
 
 # Create the main app without a prefix
-app = FastAPI(title="Sistema de Control por Gestos", version="1.0.0")
+app = FastAPI(title="Sistema de Control por Gestos", version="1.0.0", lifespan=lifespan)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -54,34 +63,31 @@ logger = logging.getLogger(__name__)
 
 @api_router.get("/profiles", response_model=List[UserProfile])
 async def get_profiles():
-    """Obtiene todos los perfiles de usuario."""
-    profiles = await db.profiles.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convertir timestamps
-    for profile in profiles:
-        if isinstance(profile.get('created_at'), str):
-            profile['created_at'] = datetime.fromisoformat(profile['created_at'])
-        if isinstance(profile.get('updated_at'), str):
-            profile['updated_at'] = datetime.fromisoformat(profile['updated_at'])
-    
-    return profiles
+    """Obtener todos los perfiles de usuario"""
+    # Devolver un perfil predeterminado en modo sin base de datos
+    return [
+        {
+            "id": "default",
+            "name": "Perfil Predeterminado",
+            "settings": {
+                "gesture_sensitivity": 0.7,
+                "scroll_speed": 10,
+                "cursor_sensitivity": 1.5
+            },
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+    ]
 
 @api_router.post("/profiles", response_model=UserProfile)
 async def create_profile(profile_data: UserProfileCreate):
     """Crea un nuevo perfil de usuario."""
-    profile = UserProfile(
-        name=profile_data.name,
-        description=profile_data.description,
-        gesture_settings=profile_data.gesture_settings or {},
-        action_mapping=profile_data.action_mapping or {}
-    )
-    
-    doc = profile.model_dump()
-    doc['created_at'] = doc['created_at'].isoformat()
-    doc['updated_at'] = doc['updated_at'].isoformat()
-    
-    await db.profiles.insert_one(doc)
-    return profile
+    # En modo de prueba, simplemente devolver el perfil predeterminado
+    return {
+        "id": "default",
+        "name": profile_data.name,
+        "settings": profile_data.gesture_settings or {},
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
 
 @api_router.get("/profiles/{profile_id}", response_model=UserProfile)
 async def get_profile(profile_id: str):
@@ -182,7 +188,7 @@ class ConnectionManager:
     
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.detectors: dict = {}  # websocket -> (detector, classifier, processor)
+        self.detectors: dict = {}  # websocket -> (detector, classifier, processor, system_controller)
     
     async def connect(self, websocket: WebSocket, profile_id: str = None):
         await websocket.accept()
@@ -209,8 +215,9 @@ class ConnectionManager:
         detector = HandDetector(max_num_hands=1, min_detection_confidence=0.5)
         classifier = GestureClassifier(confidence_thresholds=thresholds)
         processor = GestureProcessor(smoothing_factor=smoothing)
+        system_controller = SystemController()
         
-        self.detectors[websocket] = (detector, classifier, processor, profile_id)
+        self.detectors[websocket] = (detector, classifier, processor, system_controller, profile_id)
         
         logger.info(f"Cliente conectado. Total: {len(self.active_connections)}")
     
@@ -219,7 +226,7 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
         
         if websocket in self.detectors:
-            detector, _, _, _ = self.detectors[websocket]
+            detector, _, _, _, _ = self.detectors[websocket]
             detector.close()
             del self.detectors[websocket]
         
@@ -230,7 +237,7 @@ class ConnectionManager:
         if websocket not in self.detectors:
             return {"error": "Detector no inicializado"}
         
-        detector, classifier, processor, profile_id = self.detectors[websocket]
+        detector, classifier, processor, system_controller, profile_id = self.detectors[websocket]
         
         try:
             # Decodificar imagen base64
@@ -258,6 +265,26 @@ class ConnectionManager:
             
             # Procesar con suavizado
             processed = processor.process(gesture_result)
+            
+            # Ejecutar acción del sistema si el gesto es estable
+            if processed['stable'] and processed['action'] != 'none':
+                action_details = {}
+                
+                # Preparar detalles según el tipo de acción
+                if processed['action'] == 'move_cursor':
+                    # Normalizar la posición del índice para mover el cursor
+                    index_tip = hand['landmarks'][8]  # Punta del índice
+                    # Convertir coordenadas de la imagen a coordenadas normalizadas (0-1)
+                    h, w, _ = image.shape
+                    action_details['position'] = (index_tip[0] / w, index_tip[1] / h)
+                elif processed['action'] == 'scroll':
+                    # Determinar dirección del scroll basado en la posición de la mano
+                    palm_y = hand['landmarks'][0][1]  # Centro de la palma
+                    prev_y = processor.get_previous_position()[1] if processor.get_previous_position() else palm_y
+                    action_details['direction'] = 'up' if palm_y < prev_y else 'down'
+                
+                # Ejecutar la acción correspondiente
+                system_controller.execute_action(processed['action'], action_details)
             
             # Guardar log si es un gesto válido y cambió
             if processed['stable'] and processed['gesture_changed'] and processed['gesture'] != 'unknown':
@@ -319,6 +346,33 @@ async def websocket_gesture_detection(websocket: WebSocket, profile_id: str = No
         logger.error(f"Error en WebSocket: {e}")
         manager.disconnect(websocket)
 
+@app.websocket("/ws/{profile_id}")
+async def websocket_endpoint(websocket: WebSocket, profile_id: str):
+    await connection_manager.connect(websocket)
+    
+    # Usar perfil predeterminado para pruebas de gestos
+    profile = {
+        "id": profile_id or "default",
+        "name": "Perfil Predeterminado",
+        "settings": {
+            "gesture_sensitivity": 0.7,
+            "scroll_speed": 10,
+            "cursor_sensitivity": 1.5
+        }
+    }
+    
+    if not profile:
+        await websocket.close(code=1008, reason="Perfil no encontrado")
+        return
+        
+    # Procesar frames
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await connection_manager.process_frame(websocket, data, profile)
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+
 # Include the router in the main app
 app.include_router(api_router)
 
@@ -329,8 +383,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
-    logger.info("Servidor apagado")

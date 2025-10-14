@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 class GestureProcessor:
     """
-    Procesador de gestos con suavizado temporal y filtrado de falsos positivos.
-    Mantiene un buffer de gestos recientes para estabilizar la detección.
+    Procesa los resultados del clasificador de gestos para proporcionar
+    resultados estables y detectar cambios de gestos.
     """
     
     def __init__(self, 
@@ -37,6 +37,7 @@ class GestureProcessor:
         self.current_action: Optional[str] = None
         self.gesture_start_time: float = 0
         self.last_position: Optional[tuple] = None
+        self.previous_position: Optional[tuple] = None  # Para seguimiento de movimiento
         
         # Estadísticas
         self.total_gestures_processed: int = 0
@@ -55,6 +56,14 @@ class GestureProcessor:
             Gesto procesado y suavizado con información adicional
         """
         self.total_gestures_processed += 1
+        
+        # Guardar posición anterior si está disponible en details
+        if 'details' in gesture_data and any(k in gesture_data['details'] for k in ['cursor_x', 'cursor_y', 'pinch_x', 'pinch_y']):
+            details = gesture_data['details']
+            if 'cursor_x' in details and 'cursor_y' in details:
+                self.previous_position = (details['cursor_x'], details['cursor_y'])
+            elif 'pinch_x' in details and 'pinch_y' in details:
+                self.previous_position = (details['pinch_x'], details['pinch_y'])
         
         # Añadir al buffer
         self.gesture_buffer.append(gesture_data)
@@ -100,6 +109,15 @@ class GestureProcessor:
         }
         
         return result
+        
+    def get_previous_position(self) -> Optional[tuple]:
+        """
+        Obtiene la posición anterior registrada.
+        
+        Returns:
+            Tupla con la posición anterior o None si no hay
+        """
+        return self.previous_position
     
     def _get_stable_gesture(self) -> Optional[Dict]:
         """

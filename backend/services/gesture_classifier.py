@@ -74,11 +74,11 @@ class GestureClassifier:
         
         # Verificar cada gesto en orden de prioridad
         gestures = [
-            ('pinch', self._is_pinch, 'drag_drop'),
             ('index_point', self._is_index_point, 'move_cursor'),
             ('fist', self._is_fist, 'left_click'),
             ('thumbs_up', self._is_thumbs_up, 'right_click'),
-            ('open_hand', self._is_open_hand, 'scroll')
+            ('open_hand', self._is_open_hand, 'scroll'),
+            ('pinch', self._is_pinch, 'drag_drop')
         ]
         
         for gesture_name, detector_func, action in gestures:
@@ -102,9 +102,20 @@ class GestureClassifier:
         ring_folded = not self._is_finger_extended(lm, self.RING_FINGER_TIP, self.RING_FINGER_MCP)
         pinky_folded = not self._is_finger_extended(lm, self.PINKY_TIP, self.PINKY_MCP)
         
-        if index_extended and middle_folded and ring_folded and pinky_folded:
-            return 0.90
-        elif index_extended and (middle_folded or ring_folded):
+        # Verificar que el índice esté claramente más extendido que los otros dedos
+        index_tip_y = lm[self.INDEX_FINGER_TIP][1]
+        middle_tip_y = lm[self.MIDDLE_FINGER_TIP][1]
+        ring_tip_y = lm[self.RING_FINGER_TIP][1]
+        pinky_tip_y = lm[self.PINKY_TIP][1]
+        
+        # El índice debe estar más alto (valor Y menor) que los otros dedos
+        index_highest = (index_tip_y < middle_tip_y and index_tip_y < ring_tip_y and index_tip_y < pinky_tip_y)
+        
+        if index_extended and middle_folded and ring_folded and pinky_folded and index_highest:
+            return 0.95
+        elif index_extended and (middle_folded and ring_folded) and index_highest:
+            return 0.85
+        elif index_extended and index_highest:
             return 0.75
         return 0.0
     
@@ -142,7 +153,7 @@ class GestureClassifier:
     
     def _is_open_hand(self, lm: np.ndarray) -> float:
         """Detecta mano abierta (🖐️) para scroll."""
-        # Todos los dedos extendidos
+        # Todos los dedos extendidos y separados
         fingers_extended = [
             self._is_finger_extended(lm, self.INDEX_FINGER_TIP, self.INDEX_FINGER_MCP),
             self._is_finger_extended(lm, self.MIDDLE_FINGER_TIP, self.MIDDLE_FINGER_MCP),
@@ -150,11 +161,28 @@ class GestureClassifier:
             self._is_finger_extended(lm, self.PINKY_TIP, self.PINKY_MCP)
         ]
         
+        # Verificar que el pulgar también esté extendido
+        thumb_extended = self._is_finger_extended(lm, self.THUMB_TIP, self.THUMB_CMC)
+        
+        # Verificar que los dedos estén separados (distancia entre puntas)
+        index_tip = lm[self.INDEX_FINGER_TIP]
+        middle_tip = lm[self.MIDDLE_FINGER_TIP]
+        ring_tip = lm[self.RING_FINGER_TIP]
+        pinky_tip = lm[self.PINKY_TIP]
+        
+        # Calcular distancias entre dedos adyacentes
+        dist_index_middle = np.linalg.norm(index_tip - middle_tip)
+        dist_middle_ring = np.linalg.norm(middle_tip - ring_tip)
+        dist_ring_pinky = np.linalg.norm(ring_tip - pinky_tip)
+        
+        # Los dedos deben estar separados
+        fingers_separated = (dist_index_middle > 0.03 and dist_middle_ring > 0.03 and dist_ring_pinky > 0.03)
+        
         extended_count = sum(fingers_extended)
-        if extended_count >= 4:
-            return 0.92
-        elif extended_count == 3:
-            return 0.70
+        if extended_count >= 4 and thumb_extended and fingers_separated:
+            return 0.95
+        elif extended_count >= 3 and fingers_separated:
+            return 0.80
         return 0.0
     
     def _is_pinch(self, lm: np.ndarray) -> float:
@@ -165,10 +193,19 @@ class GestureClassifier:
         
         distance = np.linalg.norm(thumb_tip - index_tip)
         
-        # Otros dedos pueden estar extendidos o no
-        if distance < 0.05:  # Muy cerca
+        # Verificar que los otros dedos estén extendidos para diferenciar de puño
+        middle_extended = self._is_finger_extended(lm, self.MIDDLE_FINGER_TIP, self.MIDDLE_FINGER_MCP)
+        ring_extended = self._is_finger_extended(lm, self.RING_FINGER_TIP, self.RING_FINGER_MCP)
+        pinky_extended = self._is_finger_extended(lm, self.PINKY_TIP, self.PINKY_MCP)
+        
+        other_fingers_extended = middle_extended and ring_extended and pinky_extended
+        
+        # Otros dedos deben estar extendidos para ser una pinza clara
+        if distance < 0.05 and other_fingers_extended:  # Muy cerca y dedos extendidos
             return 0.95
-        elif distance < 0.08:  # Cerca
+        elif distance < 0.08 and other_fingers_extended:  # Cerca y dedos extendidos
+            return 0.85
+        elif distance < 0.05:  # Solo muy cerca
             return 0.75
         return 0.0
     
