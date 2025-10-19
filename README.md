@@ -16,6 +16,8 @@ Este proyecto implementa un sistema de reconocimiento de gestos en tiempo real p
 - Node.js 14.0 o superior
 - MongoDB (opcional)
 - Cámara web
+<img width="1144" height="622" alt="image" src="https://github.com/user-attachments/assets/c9ec0cb7-b94c-431f-88dd-7cbc4a6ef458" />
+
 
 ## Instalación
 
