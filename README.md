@@ -1,4 +1,4 @@
-# Sistema de Reconocimiento de Gestos para Accesibilidad
+# Sistema de Reconocimiento de Gestos para Accesibilidad Creado por System Sven
 
 Este proyecto implementa un sistema de reconocimiento de gestos en tiempo real para mejorar la accesibilidad digital, permitiendo a los usuarios controlar la computadora mediante gestos capturados por la cámara web.
 
